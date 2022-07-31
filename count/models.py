@@ -6,15 +6,30 @@ class Category(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     father = models.OneToOneField('self', on_delete=models.CASCADE)
+    root = models.IntegerField(blank=False)
+
+
+def user_directory_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
+    return 'Documents/uploaded_files/user_{0}/{1}'.format(instance.user.id, filename)
+
+
+"""
+def file_name(filename):
+    return filename
+"""
 
 
 class File(models.Model):
-    name = models.CharField(max_length=255, blank=False, null=False)
+    file = models.FileField(upload_to=user_directory_path)
+    # name = models.CharField(max_length=255, default=file_name)
+    # path = models.CharField(blank=False, null=False)
+    root = models.IntegerField(blank=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    new = models.IntegerField(blank=False, null=False, default=0)
-    duplicate = models.IntegerField(blank=False, null=False, default=0)
-    typo = models.IntegerField(blank=False, null=False, default=0)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True)  # nullable for zip
+    new = models.IntegerField(default=0)
+    duplicate = models.IntegerField(default=0)
+    typo = models.IntegerField(default=0)
 
 
 class Dict(models.Model):
@@ -22,5 +37,4 @@ class Dict(models.Model):
     number = models.IntegerField(blank=False, null=False, default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-
-
+# category in File & user in Dict & father in category
