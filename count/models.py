@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import FileExtensionValidator
 
 
 class Category(models.Model):
@@ -14,17 +15,11 @@ def user_directory_path(instance, filename):
     return 'Documents/uploaded_files/user_{0}/{1}'.format(instance.user.id, filename)
 
 
-"""
-def file_name(filename):
-    return filename
-"""
-
-
 class File(models.Model):
     file = models.FileField(upload_to=user_directory_path)
-    # name = models.CharField(max_length=255, default=file_name)
-    # path = models.CharField(blank=False, null=False)
-    root = models.IntegerField(blank=False)
+    # an argument for file field if just zip files will be saved:
+    # validators=[FileExtensionValidator(['zip', 'txt'], "Uploaded File Is Not Zipped!")]
+    root = models.IntegerField(blank=False, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True)  # nullable for zip
     new = models.IntegerField(default=0)
