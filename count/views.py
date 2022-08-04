@@ -17,11 +17,22 @@ class UploadFile(generics.CreateAPIView):
     serializer_class = UploadFileSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_context(self):
+        context = super(UploadFile, self).get_serializer_context()
+        context.update({"request": self.request})
+        return context
+
 
 class ShowFolder(generics.RetrieveAPIView):
+    """"correct this API"""
     # queryset = File.objects.all()
     serializer_class = ShowFolderSerializer
-    permission_classes = [LoggedInUserPermission]
+    # permission_classes = [LoggedInUserPermission]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = File.objects.filter(user=self.request.user.id)
+        return queryset
 
 
 class DictList(generics.ListAPIView):

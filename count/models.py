@@ -5,9 +5,8 @@ from django.core.validators import FileExtensionValidator
 
 class Category(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_category')
     father = models.OneToOneField('self', on_delete=models.CASCADE)
-    root = models.IntegerField(blank=False)
 
 
 def user_directory_path(instance, filename):
@@ -19,8 +18,7 @@ class File(models.Model):
     file = models.FileField(upload_to=user_directory_path)
     # an argument for file field if just zip files will be saved:
     # validators=[FileExtensionValidator(['zip', 'txt'], "Uploaded File Is Not Zipped!")]
-    root = models.IntegerField(blank=False, null=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_file')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True)  # nullable for zip
     new = models.IntegerField(default=0)
     duplicate = models.IntegerField(default=0)
@@ -31,5 +29,3 @@ class Dict(models.Model):
     word = models.CharField(max_length=255, blank=False, null=False)
     number = models.IntegerField(blank=False, null=False, default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-# category in File & user in Dict & father in category
