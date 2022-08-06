@@ -18,6 +18,7 @@ class File(models.Model):
     file = models.FileField(upload_to=user_directory_path)
     # an argument for file field if just zip files will be saved:
     # validators=[FileExtensionValidator(['zip', 'txt'], "Uploaded File Is Not Zipped!")]
+    path = models.CharField(max_length=255, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_file')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True)  # nullable for zip
     new = models.IntegerField(default=0)
