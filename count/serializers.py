@@ -28,12 +28,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
         default=serializers.CurrentUserDefault(),
         queryset=User.objects.all()
     )
-    """
-    name = serializers.CharField()
-    father = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    path = serializers.CharField()
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    """
+
     class Meta:
         model = File
         fields = ['file', 'user', 'category']   # , 'name', 'father', 'path'
@@ -54,7 +49,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
         return attrs
 
     def extract_zip_file(self):
-        with ZipFile(self['file'], mode='r', allowZip64=True) as extracted_file:
+        with ZipFile(self.context['request'].data['file'], mode='r', allowZip64=True) as extracted_file:
             current_user_id = self.context.get('request').user.id
             extract_path = 'Documents/uploaded_files/user_{0}/'.format(current_user_id)
             extracted_file.extractall(path=extract_path)
@@ -65,8 +60,9 @@ class UploadFileSerializer(serializers.ModelSerializer):
         current_user_id = self.context.get('request').user.id
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
             current_user_id,
-            self['file']
-        )
+            (ZipFile(self.context['request'].data['file']).filename).split('.')[0]
+
+        )  # os.path.splitext(self.context['request'].data['file'])[0]
         for root, dirs, files in os.walk(root):
             for d in dirs:
                 folder_list.append(os.path.join(root, d))
@@ -77,7 +73,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
         current_user_id = self.context.get('request').user.id
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
             current_user_id,
-            self['file']
+            (ZipFile(self.context['request'].data['file']).filename).split('.')[0]
         )
         for root, dirs, files in os.walk(root):
             for f in files:
@@ -85,17 +81,28 @@ class UploadFileSerializer(serializers.ModelSerializer):
         return file_list
 
     def create(self, validated_data):
+        self.extract_zip_file()
         folder_list_obj = []
         file_list_obj = []
         folder_list = self.find_folders()
         file_list = self.find_files()
+        # save the root folder
+        root = 'Documents/uploaded_files/user_{0}/{1}'.format(
+            self.context.get('request').user.id,
+            (ZipFile(self.context['request'].data['file']).filename).split('.')[0]
+        )
+        root_folder_obj = Category(
+            name=root,
+            user=validated_data['user']
+        )
+        root_folder_obj.save()
         for f in folder_list:
             # !!have to change the name saving for folders!!
             # !!save the single name of folder not the path instead of the name!!
             # !!find solution for name duplication and querying father id!!
             last_slash_index = f.rindex('/')
             folder_father_name = f[:last_slash_index]
-            folder_father = Category.objects.find(name=folder_father_name)
+            folder_father = Category.objects.get(name=folder_father_name)
             folder_obj = Category(
                 name=f,
                 user=validated_data['user'],
