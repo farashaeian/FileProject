@@ -6,7 +6,7 @@ from django.core.validators import FileExtensionValidator
 class Category(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_category')
-    father = models.OneToOneField('self', on_delete=models.CASCADE, null=True)
+    father = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
 
 
 def user_directory_path(instance, filename):

@@ -2,9 +2,10 @@ from .models import Dict, File, Category
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
-from zipfile import is_zipfile, ZipFile, Path
-# path.is_dir(self)
+from zipfile import is_zipfile, ZipFile
 import os
+# from zipfile import Path
+# path.is_dir(self)
 import re
 
 
@@ -24,6 +25,10 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
 
 class UploadFileSerializer(serializers.ModelSerializer):
+    # def __init__(self, *args, **kwargs):
+    #     current_user_id = self.context.get('request').user.id
+    #     super().__init__(*args, **kwargs)
+
     user = serializers.PrimaryKeyRelatedField(
         default=serializers.CurrentUserDefault(),
         queryset=User.objects.all()
@@ -31,7 +36,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        fields = ['file', 'user', 'category']   # , 'name', 'father', 'path'
+        fields = ['file', 'user', 'category']
         read_only_fields = ['category']
 
     def validate(self, attrs):
@@ -102,12 +107,13 @@ class UploadFileSerializer(serializers.ModelSerializer):
             # !!find solution for name duplication and querying father id!!
             last_slash_index = f.rindex('/')
             folder_father_name = f[:last_slash_index]
-            folder_father = Category.objects.get(name=folder_father_name)
+            folder_father_obj = Category.objects.filter(name=folder_father_name).last()
             folder_obj = Category(
                 name=f,
                 user=validated_data['user'],
-                father=folder_father
+                father=folder_father_obj
             )
+            folder_obj.save()
             folder_list_obj.append(folder_obj)
         folders = [Category(**item) for item in validated_data]
         Category.objects.bulk_create(folders)
