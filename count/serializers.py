@@ -4,9 +4,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from zipfile import is_zipfile, ZipFile
 import os
-# from zipfile import Path
-# path.is_dir(self)
-import re
+from rest_framework import status
+from rest_framework.response import Response
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -42,6 +41,10 @@ class UploadFileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not is_zipfile(attrs['file']):
             raise serializers.ValidationError("Uploaded File Is Not Zipped!")
+        zip_file_name = ZipFile(attrs['file']).filename.split('.')[0]
+        duplicate_file_name_condition = Category.objects.filter(display_name=zip_file_name)
+        if duplicate_file_name_condition:
+            raise serializers.ValidationError("Change The Zip File Name!")
         temporary_extraction = ZipFile(attrs['file'])
         zip_file_items = temporary_extraction.namelist()
         valid_item = True
@@ -65,9 +68,9 @@ class UploadFileSerializer(serializers.ModelSerializer):
         current_user_id = self.context.get('request').user.id
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
             current_user_id,
-            (ZipFile(self.context['request'].data['file']).filename).split('.')[0]
+            ZipFile(self.context['request'].data['file']).filename.split('.')[0]
 
-        )  # os.path.splitext(self.context['request'].data['file'])[0]
+        )
         for root, dirs, files in os.walk(root):
             for d in dirs:
                 folder_list.append(os.path.join(root, d))
@@ -78,7 +81,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
         current_user_id = self.context.get('request').user.id
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
             current_user_id,
-            (ZipFile(self.context['request'].data['file']).filename).split('.')[0]
+            ZipFile(self.context['request'].data['file']).filename.split('.')[0]
         )
         for root, dirs, files in os.walk(root):
             for f in files:
@@ -86,49 +89,65 @@ class UploadFileSerializer(serializers.ModelSerializer):
         return file_list
 
     def create(self, validated_data):
+        # serializer = self.get_serializer(data=self.context['request'].data)
         self.extract_zip_file()
-        folder_list_obj = []
-        file_list_obj = []
         folder_list = self.find_folders()
         file_list = self.find_files()
+        # save zip file
+        zip_file_name = ZipFile(self.context['request'].data['file']).filename
+        zip_file_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
+            self.context.get('request').user.id, zip_file_name
+        )
+        zip_file_obj = File(
+            file=self.context['request'].data['file'],
+            path=zip_file_path,
+            display_name=zip_file_name,
+            user=validated_data['user']
+        )
+        # zip_file_obj.save()
         # save the root folder
+        root_folder_name = zip_file_name.split('.')[0]
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
-            self.context.get('request').user.id,
-            (ZipFile(self.context['request'].data['file']).filename).split('.')[0]
+            self.context.get('request').user.id, root_folder_name
         )
         root_folder_obj = Category(
-            name=root,
+            path=root,
+            display_name=root_folder_name,
             user=validated_data['user']
         )
         root_folder_obj.save()
+
         for f in folder_list:
-            # !!have to change the name saving for folders!!
-            # !!save the single name of folder not the path instead of the name!!
-            # !!find solution for name duplication and querying father id!!
             last_slash_index = f.rindex('/')
-            folder_father_name = f[:last_slash_index]
-            folder_father_obj = Category.objects.filter(name=folder_father_name).last()
+            folder_father_path = f[:last_slash_index]
+            folder_father_obj = Category.objects.get(path=folder_father_path)
+            folder_name = f[(last_slash_index+1):]
             folder_obj = Category(
-                name=f,
+                path=f,
+                display_name=folder_name,
                 user=validated_data['user'],
                 father=folder_father_obj
             )
             folder_obj.save()
-            folder_list_obj.append(folder_obj)
-        folders = [Category(**item) for item in validated_data]
-        Category.objects.bulk_create(folders)
+
         for f in file_list:
             last_slash_index = f.rindex('/')
-            file_category_name = f[:last_slash_index]
-            file_category = Category.objects.find(name=file_category_name)
+            file_category_path = f[:last_slash_index]
+            file_category = Category.objects.get(path=file_category_path)
+            file_name = f[(last_slash_index+1):]
             file_obj = File(
                 path=f,
+                display_name=file_name,
                 user=validated_data['user'],
                 category=file_category
             )
-            file_list_obj.append(file_obj)
-        files = [File(**item) for item in validated_data]
-        return File.objects.bulk_create(files)
+            file_obj.save()
+        # headers = self.get_success_headers(serializer.data)
+        dict_response = {"error": False, "Title": "Success", "ico": "successIcon",
+                         "message": "Successfully Be Extracted."}
+        return Response(
+            dict_response
+        )
 
 
 class ShowFolderSerializer(serializers.ModelSerializer):
