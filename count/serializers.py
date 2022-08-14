@@ -6,6 +6,8 @@ from zipfile import is_zipfile, ZipFile
 import os
 from rest_framework import status
 from rest_framework.response import Response
+from nltk.tokenize import word_tokenize
+from django.core.files import File
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -41,8 +43,8 @@ class UploadFileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not is_zipfile(attrs['file']):
             raise serializers.ValidationError("Uploaded File Is Not Zipped!")
-        zip_file_name = ZipFile(attrs['file']).filename.split('.')[0]
-        duplicate_file_name_condition = Category.objects.filter(display_name=zip_file_name)
+        zip_file_name = ZipFile(attrs['file']).filename
+        duplicate_file_name_condition = File.objects.filter(display_name=zip_file_name)
         if duplicate_file_name_condition:
             raise serializers.ValidationError("Change The Zip File Name!")
         temporary_extraction = ZipFile(attrs['file'])
@@ -88,8 +90,21 @@ class UploadFileSerializer(serializers.ModelSerializer):
                 file_list.append(os.path.join(root, f))
         return file_list
 
+    # check the returned data of below function
+    def text_file_tokenize(self, file_path):
+        text = open(file_path, 'r').read()
+        file_text = word_tokenize(text)
+        return file_text
+
+    def analyze_text_file(self, file_path):
+        file_text = self.text_file_tokenize(file_path)
+        analyze = {'new': 0, "duplicate": 0, "typo": 0}
+        # analyze the file text and save conclusion in analyze dictionary
+        return analyze
+    # call analyze_text_file function before saving file objs
+    # and save new, duplicate and typo fields in the file objs
+
     def create(self, validated_data):
-        # serializer = self.get_serializer(data=self.context['request'].data)
         self.extract_zip_file()
         folder_list = self.find_folders()
         file_list = self.find_files()
@@ -104,7 +119,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
             display_name=zip_file_name,
             user=validated_data['user']
         )
-        # zip_file_obj.save()
+        zip_file_obj.save()
         # save the root folder
         root_folder_name = zip_file_name.split('.')[0]
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
@@ -142,12 +157,13 @@ class UploadFileSerializer(serializers.ModelSerializer):
                 category=file_category
             )
             file_obj.save()
-        # headers = self.get_success_headers(serializer.data)
-        dict_response = {"error": False, "Title": "Success", "ico": "successIcon",
-                         "message": "Successfully Be Extracted."}
+        # self.instance = self.create(validated_data)
+        self.data['file'] = validated_data['file']
+        # self.data['category'] = validated_data['category']
         return Response(
-            dict_response
-        )
+            {"message": "Successfully Be Extracted."},
+            status=status.HTTP_201_CREATED
+        )  # data=?
 
 
 class ShowFolderSerializer(serializers.ModelSerializer):
