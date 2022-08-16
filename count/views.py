@@ -37,9 +37,10 @@ class ShowFolder(generics.RetrieveAPIView):
 
 class DictList(generics.ListAPIView):
     serializer_class = DictListSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Dict.objects.filter(user=self.request.user.id).order_by('-number')
+        queryset = Dict.objects.filter(user=self.request.user).order_by('-number')
         return queryset
         # ? you can put order_by value in model's Meta class ordering field(is it better?)
         # ? in our case above solution can make mistake in our result?

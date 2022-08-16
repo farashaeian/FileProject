@@ -7,7 +7,8 @@ import os
 from rest_framework import status
 from rest_framework.response import Response
 from nltk.tokenize import word_tokenize
-from django.core.files import File
+# from django.core.files import File
+from spellchecker import SpellChecker
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -43,8 +44,13 @@ class UploadFileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not is_zipfile(attrs['file']):
             raise serializers.ValidationError("Uploaded File Is Not Zipped!")
+        # !!! It is important that give the zip file name from the
+        # uploaded zip file not the extracted folder. !!!
         zip_file_name = ZipFile(attrs['file']).filename
-        duplicate_file_name_condition = File.objects.filter(display_name=zip_file_name)
+        duplicate_file_name_condition = File.objects.filter(
+            display_name=zip_file_name,
+            user=self.context.get('request').user
+        )
         if duplicate_file_name_condition:
             raise serializers.ValidationError("Change The Zip File Name!")
         temporary_extraction = ZipFile(attrs['file'])
@@ -71,7 +77,6 @@ class UploadFileSerializer(serializers.ModelSerializer):
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
             current_user_id,
             ZipFile(self.context['request'].data['file']).filename.split('.')[0]
-
         )
         for root, dirs, files in os.walk(root):
             for d in dirs:
@@ -90,25 +95,52 @@ class UploadFileSerializer(serializers.ModelSerializer):
                 file_list.append(os.path.join(root, f))
         return file_list
 
-    # check the returned data of below function
     def text_file_tokenize(self, file_path):
-        text = open(file_path, 'r').read()
+        opened_file = open(file_path, 'r')
+        text = opened_file.read()
+        opened_file.close()
         file_text = word_tokenize(text)
         return file_text
 
     def analyze_text_file(self, file_path):
         file_text = self.text_file_tokenize(file_path)
         analyze = {'new': 0, "duplicate": 0, "typo": 0}
-        # analyze the file text and save conclusion in analyze dictionary
+        user = self.context.get('request').user
+        for word in file_text:
+            is_typo = SpellChecker().unknown([word])
+            try:
+                word_in_Dict = Dict.objects.get(word=word, user=user)
+            except Dict.DoesNotExist:
+                word_in_Dict = None
+            if is_typo:
+                # increase typo number in the file
+                analyze['typo'] += 1
+            elif word_in_Dict:
+                # increase word number in the user dictionary
+                new_word_number = word_in_Dict.number + 1
+                word_in_Dict.number = new_word_number
+                word_in_Dict.save()
+                # increase word duplication in the file
+                analyze['duplicate'] += 1
+            else:
+                # add new word to the user Dictionary
+                new_word = Dict(
+                    word=word,
+                    number=1,
+                    user=user
+                )
+                new_word.save()
+                # increase new word number in the file
+                analyze['new'] += 1
         return analyze
-    # call analyze_text_file function before saving file objs
-    # and save new, duplicate and typo fields in the file objs
 
     def create(self, validated_data):
         self.extract_zip_file()
         folder_list = self.find_folders()
         file_list = self.find_files()
         # save zip file
+        # !!! It is important that give the zip file name from the
+        # uploaded zip file not the extracted folder. !!!
         zip_file_name = ZipFile(self.context['request'].data['file']).filename
         zip_file_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
             self.context.get('request').user.id, zip_file_name
@@ -150,20 +182,25 @@ class UploadFileSerializer(serializers.ModelSerializer):
             file_category_path = f[:last_slash_index]
             file_category = Category.objects.get(path=file_category_path)
             file_name = f[(last_slash_index+1):]
+            analyze = self.analyze_text_file(f)
             file_obj = File(
                 path=f,
                 display_name=file_name,
                 user=validated_data['user'],
-                category=file_category
+                category=file_category,
+                new=analyze['new'],
+                duplicate=analyze['duplicate'],
+                typo=analyze['typo']
             )
             file_obj.save()
-        # self.instance = self.create(validated_data)
-        self.data['file'] = validated_data['file']
-        # self.data['category'] = validated_data['category']
+
         return Response(
             {"message": "Successfully Be Extracted."},
             status=status.HTTP_201_CREATED
-        )  # data=?
+        )
+
+    def to_representation(self, instance):
+        return {"message": "Successfully Be Extracted."}
 
 
 class ShowFolderSerializer(serializers.ModelSerializer):
