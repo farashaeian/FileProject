@@ -205,8 +205,8 @@ class UploadFileSerializer(serializers.ModelSerializer):
 
 class ShowFolderSerializer(serializers.ModelSerializer):
     class Meta:
-        model = File
-        fields = '__all__'
+        model = Category
+        fields = ['display_name', 'father']
 
 
 class DictListSerializer(serializers.ModelSerializer):
