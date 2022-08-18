@@ -6,7 +6,7 @@ from rest_framework import generics, mixins
 from . permissions import LoggedInUserPermission
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-import  os
+import os
 from zipfile import is_zipfile, ZipFile
 
 
@@ -35,12 +35,12 @@ class ShowFolder(generics.RetrieveAPIView):
         queryset = Category.objects.filter(user=self.request.user)
         return queryset
 
-    def calculate_folder_info(self, root):
+    def calculate_folder_info(self, sent_path):
         # content_list = os.listdir(requested_obj.path)
         # text_file_list = [f for f in content_list if f.endswith(".txt")]
 
         file_list = []
-        for root, dirs, files in os.walk(root):
+        for root, dirs, files in os.walk(sent_path):
             for f in files:
                 file_list.append(os.path.join(root, f))
 
@@ -52,23 +52,27 @@ class ShowFolder(generics.RetrieveAPIView):
             analyze['new'] = analyze['new'] + file_obj.new
             analyze['duplicate'] = analyze['duplicate'] + file_obj.duplicate
             analyze['typo'] = analyze['typo'] + file_obj.typo
-        root_obj = Category.objects.get(path=root)
+        root_obj = Category.objects.get(path=sent_path)
         analyze['display_name'] = root_obj.display_name
-        analyze['father'] = root_obj.father.id
+        if root_obj.father:
+            analyze['father'] = root_obj.father.id
+        else:
+            analyze['father'] = ""
+
         return analyze
 
     def custom_response(self):
         custom_response_data = []
         folder_list = []
         file_list = []
-        root = Category.objects.get(id=self.kwargs['pk']).path
-        for root, dirs, files in os.walk(root):
+        requested_folder = Category.objects.get(id=self.kwargs['pk'])
+        for root, dirs, files in os.walk(requested_folder.path):
             for d in dirs:
                 folder_list.append(os.path.join(root, d))
             for f in files:
                 file_list.append(os.path.join(root, f))
 
-        custom_response_data.append(self.calculate_folder_info(root))
+        custom_response_data.append(self.calculate_folder_info(requested_folder.path))
         for f in folder_list:
             custom_response_data.append(self.calculate_folder_info(f))
 
