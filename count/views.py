@@ -61,39 +61,38 @@ class ShowFolder(generics.RetrieveAPIView):
 
         return analyze
 
-    def custom_response(self):
-        custom_response_data = []
-        folder_list = []
-        file_list = []
-        requested_folder = Category.objects.get(id=self.kwargs['pk'])
-        for root, dirs, files in os.walk(requested_folder.path):
-            for d in dirs:
-                folder_list.append(os.path.join(root, d))
-            for f in files:
-                file_list.append(os.path.join(root, f))
-
-        custom_response_data.append(self.calculate_folder_info(requested_folder.path))
-        for f in folder_list:
-            custom_response_data.append(self.calculate_folder_info(f))
-
-        for f in file_list:
-            file_obj = File.objects.get(path=f)
-            analyze = {
-                "display_name": file_obj.display_name,
-                "category_id": file_obj.category.id,
-                'new': file_obj.new,
-                'duplicate': file_obj.duplicate,
-                'typo': file_obj.typo
-            }
-            custom_response_data.append(analyze)
-
-        return custom_response_data
+    def custom_response(self, obj, response_list):
+        response_list.append(self.calculate_folder_info(obj.path))
+        pre_content_list = os.listdir(obj.path)
+        content_list = []
+        # pre_content_list contains first level obj content's "names".
+        for x in pre_content_list:
+            if x.endswith('.txt'):
+                content_list.append(File.objects.get(display_name=x, category=obj))
+            else:
+                content_list.append(Category.objects.get(display_name=x, father=obj))
+        # content_list contains first level content's "objects".
+        for y in content_list:
+            if y.display_name.endswith('.txt'):
+                analyze = {
+                    "display_name": y.display_name,
+                    "category": y.category.id,
+                    "new": y.new,
+                    "duplicate": y.duplicate,
+                    "typo": y.typo
+                }
+                response_list.append(analyze)
+            else:
+                self.custom_response(y, response_list)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
 
-        custom_response_data = self.custom_response()
+        response_list = []
+        obj = Category.objects.get(id=self.kwargs['pk'])
+        self.custom_response(obj, response_list)
+        custom_response_data = response_list
 
         # custom_response_data = serializer.data
         # requested_obj = Category.objects.get(id=self.kwargs['pk'])
