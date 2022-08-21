@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'count.apps.CountConfig',
     'rest_framework',
     'django_filters',
+    'django_celery_results',
 ]
 
 REST_FRAMEWORK = {
@@ -112,7 +113,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/

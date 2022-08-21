@@ -134,10 +134,43 @@ class UploadFileSerializer(serializers.ModelSerializer):
                 analyze['new'] += 1
         return analyze
 
+    def save_folders(self, folder_list):
+        for f in folder_list:
+            last_slash_index = f.rindex('/')
+            folder_father_path = f[:last_slash_index]
+            folder_father_obj = Category.objects.get(path=folder_father_path)
+            folder_name = f[(last_slash_index+1):]
+            folder_obj = Category(
+                path=f,
+                display_name=folder_name,
+                user=self.context.get('request').user,
+                father=folder_father_obj
+            )
+            folder_obj.save()
+
+    def save_files(self, file_list):
+        for f in file_list:
+            last_slash_index = f.rindex('/')
+            file_category_path = f[:last_slash_index]
+            file_category = Category.objects.get(path=file_category_path)
+            file_name = f[(last_slash_index+1):]
+            analyze = self.analyze_text_file(f)
+            file_obj = File(
+                path=f,
+                display_name=file_name,
+                user=self.context.get('request').user,
+                category=file_category,
+                new=analyze['new'],
+                duplicate=analyze['duplicate'],
+                typo=analyze['typo']
+            )
+            file_obj.save()
+
     def create(self, validated_data):
         self.extract_zip_file()
         folder_list = self.find_folders()
         file_list = self.find_files()
+
         # save zip file
         # !!! It is important that give the zip file name from the
         # uploaded zip file not the extracted folder. !!!
@@ -152,6 +185,7 @@ class UploadFileSerializer(serializers.ModelSerializer):
             user=validated_data['user']
         )
         zip_file_obj.save()
+
         # save the root folder
         root_folder_name = zip_file_name.split('.')[0]
         root = 'Documents/uploaded_files/user_{0}/{1}'.format(
@@ -164,35 +198,9 @@ class UploadFileSerializer(serializers.ModelSerializer):
         )
         root_folder_obj.save()
 
-        for f in folder_list:
-            last_slash_index = f.rindex('/')
-            folder_father_path = f[:last_slash_index]
-            folder_father_obj = Category.objects.get(path=folder_father_path)
-            folder_name = f[(last_slash_index+1):]
-            folder_obj = Category(
-                path=f,
-                display_name=folder_name,
-                user=validated_data['user'],
-                father=folder_father_obj
-            )
-            folder_obj.save()
+        self.save_folders(folder_list)
 
-        for f in file_list:
-            last_slash_index = f.rindex('/')
-            file_category_path = f[:last_slash_index]
-            file_category = Category.objects.get(path=file_category_path)
-            file_name = f[(last_slash_index+1):]
-            analyze = self.analyze_text_file(f)
-            file_obj = File(
-                path=f,
-                display_name=file_name,
-                user=validated_data['user'],
-                category=file_category,
-                new=analyze['new'],
-                duplicate=analyze['duplicate'],
-                typo=analyze['typo']
-            )
-            file_obj.save()
+        self.save_files(file_list)
 
         return Response(
             {"message": "Successfully Be Extracted."},
