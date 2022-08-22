@@ -7,8 +7,8 @@ import os
 from rest_framework import status
 from rest_framework.response import Response
 from nltk.tokenize import word_tokenize
-# from django.core.files import File
 from spellchecker import SpellChecker
+from .tasks import unzip
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -221,6 +221,49 @@ class DictListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dict
         fields = ['word', 'number']
+
+
+class CeleryUploadFileSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(
+        default=serializers.CurrentUserDefault(),
+        queryset=User.objects.all()
+    )
+
+    class Meta:
+        model = File
+        fields = ['file', 'user', 'category']
+        read_only_fields = ['category']
+
+    def validate(self, attrs):
+        if not is_zipfile(attrs['file']):
+            raise serializers.ValidationError("Uploaded File Is Not Zipped!")
+        # !!! It is important that give the zip file name from the
+        # uploaded zip file not the extracted folder. !!!
+        zip_file_name = ZipFile(attrs['file']).filename
+        duplicate_file_name_condition = File.objects.filter(
+            display_name=zip_file_name,
+            user=self.context.get('request').user
+        )
+        if duplicate_file_name_condition:
+            raise serializers.ValidationError("Change The Zip File Name!")
+        temporary_extraction = ZipFile(attrs['file'])
+        zip_file_items = temporary_extraction.namelist()
+        valid_item = True
+        for item in zip_file_items:
+            validation_condition = (item.endswith('/')) or (item.endswith(".txt"))
+            if not validation_condition:
+                valid_item = False
+        if not valid_item:
+            raise serializers.ValidationError("Invalid Items!")
+        return attrs
+
+    def create(self, validated_data):
+        user = self.user
+        zip_file_obj = self.context['request'].data['file']
+        unzip(zip_file_obj, user)
+
+    def to_representation(self, instance):
+        return {"message": "The File Was rReceived."}
 
 
 class AllFoldersSerializer(serializers.ModelSerializer):

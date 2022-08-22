@@ -6,6 +6,7 @@ from spellchecker import SpellChecker
 from nltk.tokenize import word_tokenize
 from zipfile import ZipFile
 from count.serializers import UploadFileSerializer
+from django.contrib.auth.hashers import make_password, check_password
 
 
 class Command(BaseCommand):
@@ -15,7 +16,12 @@ class Command(BaseCommand):
         parser.add_argument(
             'user',
             type=int,
-            help="logged_in user"
+            help="directory's owner id"
+        )
+        parser.add_argument(
+            'password',
+            type=str,
+            help="user's password"
         )
         parser.add_argument(
             'directory',
@@ -24,7 +30,7 @@ class Command(BaseCommand):
         )
 
     def extract_zip_file(self, zip_obj, user):
-        with ZipFile(zip_obj, mode='r', allowZip64=True) as extracted_file:
+        with ZipFile(zip_obj.file, mode='r', allowZip64=True) as extracted_file:
             extract_path = 'Documents/uploaded_files/user_{0}/'.format(user.id)
             extracted_file.extractall(path=extract_path)
         extracted_file.close()
@@ -138,9 +144,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         directory = kwargs['directory']
+        entry_password = make_password(kwargs['password'])
         # check user existence:
         try:
             user = User.objects.get(id=kwargs['user'])
+            if check_password(entry_password, user.password):
+                raise CommandError('Th password is wrong')
         except User.DoesNotExist:
             raise CommandError('The user does not exist')
         # check the entry type (zip file or directory):

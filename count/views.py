@@ -1,7 +1,7 @@
 from .models import Dict, File, Category
 from django.contrib.auth.models import User
 from .serializers import UserRegisterSerializer, DictListSerializer,\
-    ShowFolderSerializer, UploadFileSerializer
+    ShowFolderSerializer, UploadFileSerializer, CeleryUploadFileSerializer
 from rest_framework import generics, mixins
 from . permissions import LoggedInUserPermission
 from rest_framework.permissions import IsAuthenticated
@@ -113,6 +113,17 @@ class DictList(generics.ListAPIView):
         return queryset
         # ? you can put order_by value in model's Meta class ordering field(is it better?)
         # ? in our case above solution can make mistake in our result?
+
+
+class CeleryUploadFile(generics.CreateAPIView):
+    queryset = File.objects.all()
+    serializer_class = CeleryUploadFileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super(CeleryUploadFile, self).get_serializer_context()
+        context.update({"request": self.request})
+        return context
 
 
 class AllFolders(generics.ListAPIView):
