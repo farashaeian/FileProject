@@ -61,8 +61,8 @@ class ShowFolder(generics.RetrieveAPIView):
 
         return analyze
 
-    def custom_response(self, obj, response_list):
-        response_list.append(self.calculate_folder_info(obj.path))
+    def custom_response(self, obj):
+        response_list = []
         pre_content_list = os.listdir(obj.path)
         content_list = []
         # pre_content_list contains first level obj content's "names".
@@ -83,7 +83,13 @@ class ShowFolder(generics.RetrieveAPIView):
                 }
                 response_list.append(analyze)
             else:
-                self.custom_response(y, response_list)
+                response_list.append(self.calculate_folder_info(y.path))
+                answer = self.custom_response(y)
+                if answer==[]:
+                    pass
+                else:
+                    response_list.append(answer)
+        return response_list
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -91,7 +97,12 @@ class ShowFolder(generics.RetrieveAPIView):
 
         response_list = []
         obj = Category.objects.get(id=self.kwargs['pk'])
-        self.custom_response(obj, response_list)
+        response_list.append(self.calculate_folder_info(obj.path))
+        answer = self.custom_response(obj)
+        if answer==[]:
+            pass
+        else:
+            response_list.append(answer)
         custom_response_data = response_list
 
         # custom_response_data = serializer.data

@@ -74,11 +74,11 @@ class UploadFileSerializer(serializers.ModelSerializer):
     def find_folders(self):
         folder_list = []
         current_user_id = self.context.get('request').user.id
-        root = 'Documents/uploaded_files/user_{0}/{1}'.format(
+        root_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
             current_user_id,
             ZipFile(self.context['request'].data['file']).filename.split('.')[0]
         )
-        for root, dirs, files in os.walk(root):
+        for root, dirs, files in os.walk(root_path):
             for d in dirs:
                 folder_list.append(os.path.join(root, d))
         return folder_list
@@ -258,12 +258,13 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.user
+        user = self.context.get('request').user
         zip_file_obj = self.context['request'].data['file']
         unzip(zip_file_obj, user)
+        return Response(status=status.HTTP_201_CREATED)
 
     def to_representation(self, instance):
-        return {"message": "The File Was rReceived."}
+        return {"message": "The File Was Received."}
 
 
 class AllFoldersSerializer(serializers.ModelSerializer):
