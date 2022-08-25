@@ -18,7 +18,7 @@ class UserTests(APITestCase):
         self.assertEqual(response.data['username'], created_user[0].username)
         self.assertEqual(response.data['password'], created_user[0].password)
 
-    def test_create_user_with_existence_username(self):
+    def test_create_user_with_existence_username_unsuccessfully(self):
         first_user = User(username='sima', password=1234)
         first_user.save()
         response = self.client.post(self.url, self.data, formt='json')

@@ -8,21 +8,21 @@ from random import randint
 
 
 class DictTests(APITestCase):
+
     @classmethod
     def setUpTestData(cls):
         cls.url = reverse('my_dict')
         cls.user = mommy.make(User, 3)
         cls.dict = mommy.make(Dict, 20)
 
-    def setUp(self):
-        self.random_id = randint(1, 3)
-        self.client.force_login(self.user[self.random_id])
-
     def test_list_dictionary_successfully(self):
+        random_id = randint(0, 2)
+        self.client.force_login(self.user[random_id])
+
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        current_user_dict = Dict.objects.filter(user=self.user[self.random_id]).order_by('-number')
+        current_user_dict = Dict.objects.filter(user=self.user[random_id]).order_by('-number')
         self.assertEqual(len(response.data), current_user_dict.count())
         for i in range(len(response.data)):
             self.assertEqual(response.data[i]['word'], current_user_dict[i].word)
@@ -30,7 +30,23 @@ class DictTests(APITestCase):
             self.assertEqual(response.data[i]['number'], current_user_dict[i].number)
         i, j = 0, 1
         while i != len(response.data):
-            self.assertGreaterEqual(
+            self.assertLessEqual(
                 response.data[i]['number'],
-                current_user_dict[i].number
+                response.data[j]['number']
             )
+            j += 1
+
+    def test_list_empty_dictionary_successfully(self):
+        new_user = User(username='akbar', password=12)
+        new_user.save()
+        self.client.force_login(new_user)
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        current_user_dict = Dict.objects.filter(user=new_user).order_by('-number')
+        self.assertEqual(len(response.data), 0)
+        self.assertEqual(current_user_dict.count(), 0)
+
+    def test_list_dictionary_with_invalid_unsuccessfully(self):
+        # how check this case without error
+        pass
