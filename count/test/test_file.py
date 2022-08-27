@@ -4,6 +4,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
 from count.models import File
+from zipfile import ZipFile
+from django.core.files import File as Filesystem
 
 
 class FileTests(APITestCase):
@@ -59,10 +61,32 @@ class FileTests(APITestCase):
         # {"non_field_errors": ["Change The Zip File Name!"]}
 
     def test_celery_upload_file_successfully(self):
-        data = {
-            'file': 'Documents/FileProject_samples/sample1.zip',
-            'user': self.user.id
-        }
+        file_from_system = "Documents/FileProject_samples/sample1.zip"
+        file_from_project = 'Documents/uploaded_files/user_2/sample3.zip'
 
-        response = self.client.post(self.url, data, format='json')
+        # data = {"file": File(file_from_system)}
+        # response = self.client.post(self.url, data, format='json')
+
+        with open(file_from_project, 'rb') as fp:
+            response = self.client.post(self.url, {'file': fp})
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # does the extracted file exist in the spesific path?
+        # does the zip file save in the spesific path?
+
+        # check the zip file was saved in DB :
+        db_zip_file_query = File.objects.filter(category=None)
+        self.assertEqual(db_zip_file_query.count(), 1)
+        db_zip_file = db_zip_file_query[0]
+        # self.assertEqual(db_zip_file.file, fp)
+        # self.assertEqual(db_zip_file.path, file_from_project)
+        self.assertEqual(db_zip_file.display_name, file_from_project.split('/')[-1])
+        self.assertEqual(db_zip_file.user_id, self.user.id)
+        self.assertEqual(db_zip_file.new, 0)
+        self.assertEqual(db_zip_file.duplicate, 0)
+        self.assertEqual(db_zip_file.typo, 0)
+
+        # does the extracted file save in DB?
+
+        # uploaded file's text files and folders be equal by text files and folders in DB (number and content)

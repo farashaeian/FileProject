@@ -10,7 +10,7 @@ class UserTests(APITestCase):
         self.data = {'username': 'sima', 'password': '1234'}
 
     def test_create_user_successfully(self):
-        response = self.client.post(self.url, self.data, formt='json')
+        response = self.client.post(self.url, self.data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         created_user = User.objects.all()
@@ -21,7 +21,7 @@ class UserTests(APITestCase):
     def test_create_user_with_existence_username_unsuccessfully(self):
         first_user = User(username='sima', password=1234)
         first_user.save()
-        response = self.client.post(self.url, self.data, formt='json')
+        response = self.client.post(self.url, self.data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         existence_user = User.objects.all()
