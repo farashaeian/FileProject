@@ -32,3 +32,9 @@ class Dict(models.Model):
     word = models.CharField(max_length=255, blank=False, null=False)
     number = models.IntegerField(blank=False, null=False, default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+
+class Status(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    successful = models.BooleanField(default=False)
+    # file = models.FileField()
