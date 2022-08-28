@@ -18,12 +18,11 @@ class FileTests(APITestCase):
         self.client.force_login(self.user)
 
     def test_celery_upload_file_not_zip_unsuccessfully(self):
-        data = {
-            'file': 'Documents/FileProject_samples/sample1/sample3/file1.txt',
-            'user': self.user,
-        }
+        file_from_system = "count/test/sample_zip_files/sample1.zip"
 
-        response = self.client.post(self.url, data, formt='json')
+        with open(file_from_system, 'rb') as fp:
+            response = self.client.post(self.url, {'file': fp})
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # how check the message error is shown:
         # {"non_field_errors": ["Uploaded File Is Not Zipped!"]}
@@ -51,7 +50,7 @@ class FileTests(APITestCase):
         first_file_obj.save()
 
         data = {
-            'file': 'Documents/FileProject_samples/sample8.zip',
+            'file': 'count/test/sample_zip_files/sample8.zip',
             'user': self.user.id
         }
 
@@ -61,27 +60,27 @@ class FileTests(APITestCase):
         # {"non_field_errors": ["Change The Zip File Name!"]}
 
     def test_celery_upload_file_successfully(self):
-        file_from_system = "Documents/FileProject_samples/sample1.zip"
-        file_from_project = 'Documents/uploaded_files/user_2/sample3.zip'
+        file_from_system = "count/test/sample_zip_files/sample5.zip"
 
-        # data = {"file": File(file_from_system)}
-        # response = self.client.post(self.url, data, format='json')
-
-        with open(file_from_project, 'rb') as fp:
+        with open(file_from_system, 'rb') as fp:
             response = self.client.post(self.url, {'file': fp})
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # does the extracted file exist in the spesific path?
+
         # does the zip file save in the spesific path?
 
         # check the zip file was saved in DB :
         db_zip_file_query = File.objects.filter(category=None)
         self.assertEqual(db_zip_file_query.count(), 1)
         db_zip_file = db_zip_file_query[0]
-        # self.assertEqual(db_zip_file.file, fp)
-        # self.assertEqual(db_zip_file.path, file_from_project)
-        self.assertEqual(db_zip_file.display_name, file_from_project.split('/')[-1])
+        zip_file_name = file_from_system.split('/')[-1]
+        expected_path = 'Documents/uploaded_files/user_{0}/{1}'.format(self.user.id, zip_file_name)
+        # ???? how handle system file name management????? (change the duplicate file name)
+        self.assertEqual(db_zip_file.file, expected_path)
+        self.assertEqual(db_zip_file.path, expected_path)
+        self.assertEqual(db_zip_file.display_name, zip_file_name)
         self.assertEqual(db_zip_file.user_id, self.user.id)
         self.assertEqual(db_zip_file.new, 0)
         self.assertEqual(db_zip_file.duplicate, 0)
