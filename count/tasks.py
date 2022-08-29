@@ -5,6 +5,7 @@ import os
 from nltk.tokenize import word_tokenize
 from spellchecker import SpellChecker
 from celery import Celery
+from django.contrib.auth.models import User
 
 
 def celery_extract_zip_file(zip_file_obj, user):
@@ -104,23 +105,21 @@ def celery_save_files(file_list, user):
         )
         file_obj.save()
 
+# ? is below line correct?
+app = Celery(
+    'FileProject',
+    broker='redis://localhost:6379/0',
+    backend='redis://localhost:6379/0'
+)
 
 @shared_task()
-def unzip(zip_file_obj, user):
+def unzip(zip_file_obj_path, user_id):
+    zip_file_obj = File.objects.get(path=zip_file_obj_path)
+    user = User.objects.get(id=user_id)
     try:
         celery_extract_zip_file(zip_file_obj, user)
-        # save zip file in DB:
-        zip_file_name = ZipFile(zip_file_obj).filename
-        zip_file_path = 'Documents/uploaded_files/user_{0}/{1}'.format(user.id, zip_file_name)
-        zipfile_obj = File(
-            file=zip_file_obj,
-            path=zip_file_path,
-            display_name=zip_file_name,
-            user=user
-        )
-        zipfile_obj.save()
         # save root folder in DB:
-        root_folder_name = zip_file_name.split('.')[0]
+        root_folder_name = zip_file_obj.displayname.split('.')[0]
         root_folder_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
             user.id, root_folder_name
         )
@@ -135,12 +134,13 @@ def unzip(zip_file_obj, user):
         file_list = celery_find_files(root_folder_path)
         celery_save_folders(folder_list, user)
         celery_save_files(file_list, user)
-        successful_status = Status(user=user, successful=True)
-        successful_status.save()
+        # successful_status = Status(user=user, successful=True)
+        # successful_status.save()
 
     except:
-        unsuccessful_status = Status(user=user)
-        unsuccessful_status.save()
+        # unsuccessful_status = Status(user=user)
+        # unsuccessful_status.save()
+        zip_file_obj.delete()
 
 """
 app = Celery('FileProject', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
