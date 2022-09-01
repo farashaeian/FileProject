@@ -38,17 +38,18 @@ class FileTests(APITestCase):
         self.assertEqual(response.data['non_field_errors'], ["Invalid Items!"])
 
     def test_celery_upload_file_exists_unsuccessfully(self):
-        obj_path = 'Documents/uploaded_files/user_{0}/sample8.zip'.format(self.user.id)
+        file_from_system = "count/test/sample_zip_files/sample8.zip"
+        zipfile_name = ZipFile(file_from_system).filename
+        obj_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
+            self.user.id, zipfile_name)
         first_file_obj = File(
-            file=obj_path,
+            file=file_from_system,
             path=obj_path,
             display_name='sample8.zip',
             user=self.user,
             category=None
         )
         first_file_obj.save()
-
-        file_from_system = "count/test/sample_zip_files/sample8.zip"
 
         with open(file_from_system, 'rb') as fp:
             response = self.client.post(self.url, {'file': fp})

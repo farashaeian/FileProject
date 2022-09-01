@@ -114,33 +114,38 @@ app = Celery(
 
 @shared_task()
 def unzip(zip_file_obj_path, user_id):
-    zip_file_obj = File.objects.get(path=zip_file_obj_path)
-    user = User.objects.get(id=user_id)
     try:
-        celery_extract_zip_file(zip_file_obj, user)
-        # save root folder in DB:
-        root_folder_name = zip_file_obj.displayname.split('.')[0]
-        root_folder_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
-            user.id, root_folder_name
-        )
-        root_folder_obj = Category(
-            path=root_folder_path,
-            display_name=root_folder_name,
-            user=user
-        )
-        root_folder_obj.save()
+        zip_file_obj = File.objects.get(path=zip_file_obj_path)
+        user = User.objects.get(id=user_id)
+        try:
+            celery_extract_zip_file(zip_file_obj, user)
+            # save root folder in DB:
+            root_folder_name = zip_file_obj.displayname.split('.')[0]
+            root_folder_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
+                user.id, root_folder_name
+            )
+            root_folder_obj = Category(
+                path=root_folder_path,
+                display_name=root_folder_name,
+                user=user
+            )
+            root_folder_obj.save()
 
-        folder_list = celery_find_folders(root_folder_path)
-        file_list = celery_find_files(root_folder_path)
-        celery_save_folders(folder_list, user)
-        celery_save_files(file_list, user)
-        # successful_status = Status(user=user, successful=True)
-        # successful_status.save()
-
-    except:
-        # unsuccessful_status = Status(user=user)
-        # unsuccessful_status.save()
-        zip_file_obj.delete()
+            folder_list = celery_find_folders(root_folder_path)
+            file_list = celery_find_files(root_folder_path)
+            celery_save_folders(folder_list, user)
+            celery_save_files(file_list, user)
+            # successful_status = Status(user=user, successful=True)
+            # successful_status.save()
+            extracted_folder = Category.objects.get(path=root_folder_path)
+            return {"message": "successful Process"}
+        except Category.DoesNotExist:
+            # unsuccessful_status = Status(user=user)
+            # unsuccessful_status.save()
+            zip_file_obj.delete()
+            return {"message": "Unsuccessful Process"}
+    except File.DoesNotExist:
+        return {"message": "The Zip File Is Not Available!"}
 
 """
 app = Celery('FileProject', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')

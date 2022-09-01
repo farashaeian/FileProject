@@ -259,25 +259,41 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context.get('request').user
-        zip_file_obj = self.context['request'].data['file']
+        zip_file = self.context['request'].data['file']
         # save zip file in DB:
-        zip_file_name = ZipFile(zip_file_obj).filename
+        zip_file_name = ZipFile(zip_file).filename
         zip_file_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
             user.id, zip_file_name
         )
         zipfile_obj = File(
-            file=zip_file_obj,
+            file=zip_file,
             path=zip_file_path,
             display_name=zip_file_name,
             user=user
         )
         zipfile_obj.save()
         # call celery.task:
-        unzip.delay(zip_file_path, user.id)
-        return Response(status=status.HTTP_201_CREATED)
+        zip_file_obj = File.objects.get(path=zip_file_path)
+        message = 0
+        try:
+            message = unzip.delay(zip_file_obj.path, user.id)
+            return Response(status=status.HTTP_201_CREATED)
+        except message == 0:
+            zip_file_obj.delete()
+            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def to_representation(self, instance):
-        return {"message": "The File Was Received."}
+        try:
+            user = self.context.get('request').user
+            zip_file = self.context['request'].data['file']
+            zip_file_name = ZipFile(zip_file).filename
+            zip_file_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
+                user.id, zip_file_name
+            )
+            zip_file_obj = File.objects.get(path=zip_file_path)
+            return {"message": "The File Was Received."}
+        except File.DoesNotExist:
+            return {"message": "The File Was  Not Received!"}
 
 
 class AllFoldersSerializer(serializers.ModelSerializer):
