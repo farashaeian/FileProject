@@ -277,6 +277,9 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         message = 0
         try:
             message = unzip.delay(zip_file_obj.path, user.id)
+            # from ? import taskresult
+            # unzip_task_result = taskresult(populate fields)
+            # unzip_task_result.save()
             return Response(status=status.HTTP_201_CREATED)
         except message == 0:
             zip_file_obj.delete()

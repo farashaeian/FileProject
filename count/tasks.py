@@ -1,10 +1,9 @@
 from .models import File, Category, Dict, Status
-from celery import shared_task
 from zipfile import ZipFile
 import os
 from nltk.tokenize import word_tokenize
 from spellchecker import SpellChecker
-from celery import Celery
+from celery import Celery, shared_task
 from django.contrib.auth.models import User
 
 
@@ -106,11 +105,11 @@ def celery_save_files(file_list, user):
         file_obj.save()
 
 # ? is below line correct?
-app = Celery(
-    'FileProject',
-    broker='redis://localhost:6379/0',
-    backend='redis://localhost:6379/0'
-)
+# app = Celery(
+#     'FileProject',
+#     broker='redis://localhost:6379/0',
+#     backend='redis://localhost:6379/0'
+# )
 
 @shared_task()
 def unzip(zip_file_obj_path, user_id):
@@ -120,7 +119,7 @@ def unzip(zip_file_obj_path, user_id):
         try:
             celery_extract_zip_file(zip_file_obj, user)
             # save root folder in DB:
-            root_folder_name = zip_file_obj.displayname.split('.')[0]
+            root_folder_name = zip_file_obj.display_name.split('.')[0]
             root_folder_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
                 user.id, root_folder_name
             )
