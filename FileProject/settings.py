@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 from pathlib import Path
+import djcelery
+djcelery.setup_loader()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'django_celery_results',
+    'djcelery',
 ]
 
 REST_FRAMEWORK = {
@@ -136,6 +139,8 @@ CELERY_RESULT_BACKEND = "redis://localhost:6379"
 #         'LOCATION': 'my_cache_table',
 #     }
 # }
+
+TEST_RUNNER = 'djcelery.contrib.test_runner.CeleryTestSuiteRunner'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/

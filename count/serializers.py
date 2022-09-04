@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from nltk.tokenize import word_tokenize
 from spellchecker import SpellChecker
 from .tasks import unzip
+from django_celery_results.models import TaskResult
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -277,9 +278,16 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         message = 0
         try:
             message = unzip.delay(zip_file_obj.path, user.id)
-            # from ? import taskresult
-            # unzip_task_result = taskresult(populate fields)
-            # unzip_task_result.save()
+            # save task result:
+            unzip_task_result = TaskResult(
+                task_id=message.task_id,
+                status=message.status,
+                result=message.result,
+                date_done=message.date_done,
+                traceback=message.traceback,
+                worker=message.worker
+            )
+            unzip_task_result.save()
             return Response(status=status.HTTP_201_CREATED)
         except message == 0:
             zip_file_obj.delete()
