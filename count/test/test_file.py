@@ -72,8 +72,7 @@ class FileTests(APITestCase):
         db_zip_file = db_zip_file_query[0]
         zip_file_name = file_from_system.split('/')[-1]
         zip_file_expected_path = 'Documents/uploaded_files/user_{0}/{1}'.format(self.user.id, zip_file_name)
-        # ???? how handle system file name management????? (change the duplicate file name)
-        # solve it ??? :
+        """solve it ??? :"""
         # self.assertEqual(db_zip_file.file, zip_file_expected_path)
         self.assertEqual(db_zip_file.path, zip_file_expected_path)
         self.assertEqual(db_zip_file.display_name, zip_file_name)
@@ -92,8 +91,8 @@ class FileTests(APITestCase):
         self.assertEqual(file_list[0], db_zip_file.path)
 
         # call the celery.task (unzip):
-        unzip_task_result = unzip.delay(db_zip_file.path, self.user.id)
-        self.assertTrue(unzip_task_result.successful())
+        unzip_task_result = unzip.apply(args=(db_zip_file.path, self.user.id)).get()
+        self.assertEqual(unzip_task_result['message'], 'successful Process')
 
         # check the extracted folder was saved in DB:
         db_extracted_folder_query = Category.objects.filter(father=None)
