@@ -36,5 +36,8 @@ class Dict(models.Model):
 
 class Status(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    successful = models.BooleanField(default=False)
-    # file = models.FileField()
+    task_id = models.CharField(max_length=255, null=True)
+    status = models.CharField(max_length=50, null=True)
+    result = models.TextField(null=True)
+    date_done = models.TimeField(null=True)
+

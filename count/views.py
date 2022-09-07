@@ -1,13 +1,15 @@
-from .models import Dict, File, Category
+from .models import Dict, File, Category, Status
 from django.contrib.auth.models import User
 from .serializers import UserRegisterSerializer, DictListSerializer,\
-    ShowFolderSerializer, UploadFileSerializer, CeleryUploadFileSerializer
-from rest_framework import generics, mixins
-from . permissions import LoggedInUserPermission
+    ShowFolderSerializer, UploadFileSerializer, CeleryUploadFileSerializer, UpdateTaskStatusSerializer
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import os
+from celery.result import AsyncResult
 from zipfile import is_zipfile, ZipFile
+from django_celery_results.models import TaskResult
+from . permissions import LoggedInUserPermission
 
 
 class UserRegister(generics.CreateAPIView):
@@ -137,5 +139,36 @@ class CeleryUploadFile(generics.CreateAPIView):
         return context
 
 
-class AllFolders(generics.ListAPIView):
-    pass
+class UpdateTaskStatus(generics.ListAPIView):
+    queryset = Status.objects.all()
+    serializer_class = UpdateTaskStatusSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Status.objects.filter(
+            user=self.request.user
+        )
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        pending_tasks = Status.objects.filter(user=self.request.user, status='PENDING')
+        for task in pending_tasks:
+            task_async_result = AsyncResult(id=task.task_id)
+            if task_async_result.status == 'SUCCESS':
+                task.status = task_async_result.status
+                task.result = task_async_result.result
+                task.date_done = task_async_result.date_done
+                task.save()
+
+        return Response(serializer.data)
+
+

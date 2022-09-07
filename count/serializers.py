@@ -1,4 +1,4 @@
-from .models import Dict, File, Category
+from .models import Dict, File, Category, Status
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
@@ -10,6 +10,7 @@ from nltk.tokenize import word_tokenize
 from spellchecker import SpellChecker
 from .tasks import unzip
 from django_celery_results.models import TaskResult
+# from celery.result import AsyncResult
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -278,16 +279,25 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         message = 0
         try:
             message = unzip.delay(zip_file_obj.path, user.id)
-            # save task result:
-            unzip_task_result = TaskResult(
+            """ save task result in TaskResult model:"""
+            # unzip_task_result = TaskResult(
+            #     task_id=message.task_id,
+            #     status=message.status,
+            #     result=message.result,
+            #     date_done=message.date_done,
+            #     traceback=message.traceback,
+            #     worker=message.worker
+            # )
+            # unzip_task_result.save()
+            """ save task result in Status model:"""
+            unzip_task_result_manual = Status(
+                user_id=user.id,
                 task_id=message.task_id,
                 status=message.status,
                 result=message.result,
                 date_done=message.date_done,
-                traceback=message.traceback,
-                worker=message.worker
             )
-            unzip_task_result.save()
+            unzip_task_result_manual.save()
             return Response(status=status.HTTP_201_CREATED)
         except message == 0:
             zip_file_obj.delete()
@@ -307,5 +317,22 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
             return {"message": "The File Was  Not Received!"}
 
 
-class AllFoldersSerializer(serializers.ModelSerializer):
-    pass
+class UpdateTaskStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Status
+        fields = '__all__'
+
+    # def update(self, instance, validated_data):
+    #     pending_tasks = Status.objects.filter(status='PENDING')
+    #     pending_tasks_number = len(pending_tasks)
+    #     for task in pending_tasks:
+    #         if AsyncResult(id=task.task_id).status == 'SUCCESS':
+    #             task.status = 'SUCCESS'
+    #             task.result = AsyncResult(id=task.task_id).result
+    #             task.date_done = AsyncResult(id=task.task_id).date_done
+    #             task.save()
+    #             pending_tasks_number -= 1
+    #
+    #     message = '{0} pending tasks are left.'.format(pending_tasks_number)
+    #     return {'message': message}
+
