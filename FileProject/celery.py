@@ -11,8 +11,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'FileProject.settings')
 app = Celery(
     'FileProject',
     broker='redis://localhost:6379/0',
-    backend='redis://localhost:6379/0'
+    backend='django-db'
 )
+# 'redis://localhost:6379/0'  => didn't save task result in DB
+# 'postgresql://localhost:5432'  => had error
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
@@ -24,6 +26,7 @@ app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(settings.INSTALLED_APPS)
 
 CELERY_CACHE_BACKEND = 'default'
+
 
 @app.task(bind=True)
 def debug_task(self):

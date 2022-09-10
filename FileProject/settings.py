@@ -128,17 +128,20 @@ USE_I18N = True
 
 USE_TZ = True
 
-# CELERY_RESULT_BACKEND = 'django-db'
-
-CELERY_CACHE_BACKEND = 'django-cache'
+# 3 below lines didn't save task result in DB
+# CELERY_RESULT_BACKEND = "redis://localhost:6379"  # django-cache  # "postgresql://localhost:5432"
+# CELERY_RESULT_BACKEND = 'db+postgresql://zahra:1234@localhost/django_celery_results_TaskResult'
+# CELERY_RESULT_BACKEND = 'postgresql://localhost:5432'
+CELERY_RESULT_BACKEND = 'django-db'
 CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"
+CELERY_CACHE_BACKEND = 'django-cache'  # 'default'
 # CACHES = {
 #     'default': {
 #         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
 #         'LOCATION': 'my_cache_table',
 #     }
 # }
+# do for above CACHES setting: python manage.py createcachetable --dry-run
 
 # TEST_RUNNER = 'djcelery.contrib.test_runner.CeleryTestSuiteRunner'
 
