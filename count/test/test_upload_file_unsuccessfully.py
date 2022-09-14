@@ -5,8 +5,7 @@ from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
 from count.models import File, Category
 from zipfile import ZipFile
-import os
-from count.tasks import unzip
+from django_celery_results.models import TaskResult
 
 
 class UploadFileTestsUnsuccessfully(APITestCase):
@@ -38,7 +37,8 @@ class UploadFileTestsUnsuccessfully(APITestCase):
         # check the message {"non_field_errors": ["Invalid Items!"]} :
         self.assertEqual(response.data['non_field_errors'], ["Invalid Items!"])
 
-    def test_celery_upload_file_exists_unsuccessfully(self):
+    def test_celery_upload_file_exists_with_success_status_unsuccessfully(self):
+        task_result = mommy.make(TaskResult, status='SUCCESS')
         file_from_system = "count/test/sample_zip_files/sample8.zip"
         zipfile_name = ZipFile(file_from_system).filename
         obj_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
@@ -48,7 +48,8 @@ class UploadFileTestsUnsuccessfully(APITestCase):
             path=obj_path,
             display_name='sample8.zip',
             user=self.user,
-            category=None
+            category=None,
+            task_id=task_result.task_id
         )
         first_file_obj.save()
 
@@ -57,3 +58,28 @@ class UploadFileTestsUnsuccessfully(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # check the message {"non_field_errors": ["Change The Zip File Name!"]} :
         self.assertEqual(response.data['non_field_errors'], ["Change The Zip File Name!"])
+
+    def test_celery_upload_file_exists_with_pending_status_unsuccessfully(self):
+        task_result = mommy.make(TaskResult, status='PENDING')
+        file_from_system = "count/test/sample_zip_files/sample8.zip"
+        zipfile_name = ZipFile(file_from_system).filename
+        obj_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
+            self.user.id, zipfile_name)
+        first_file_obj = File(
+            file=file_from_system,
+            path=obj_path,
+            display_name='sample8.zip',
+            user=self.user,
+            category=None,
+            task_id=task_result.task_id
+        )
+        first_file_obj.save()
+
+        with open(file_from_system, 'rb') as fp:
+            response = self.client.post(self.url, {'file': fp})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # check the message {"non_field_errors": ["Change The Zip File Name!"]} :
+        self.assertEqual(response.data['non_field_errors'], ["The Zip File Is Being Processed!"])
+
+    def test_celery_upload_file_exists_with_failure_status_successfully(self):
+        pass

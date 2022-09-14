@@ -5,7 +5,6 @@ import os
 from spellchecker import SpellChecker
 from nltk.tokenize import word_tokenize
 from zipfile import ZipFile
-from count.serializers import UploadFileSerializer
 from django.contrib.auth.hashers import make_password, check_password
 
 

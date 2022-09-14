@@ -168,6 +168,11 @@ class UpdateTaskStatus(generics.ListAPIView):
                 task.result = task_async_result.result
                 task.date_done = task_async_result.date_done
                 task.save()
+            elif task_async_result.status == 'FAILURE':
+                task.status = task_async_result.status
+                task.result = task_async_result.result
+                task.date_done = task_async_result.date_done
+                task.save()
 
         return Response(serializer.data)
 

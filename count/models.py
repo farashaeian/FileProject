@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django_celery_results.models import TaskResult
 from django.core.validators import FileExtensionValidator
 
 
@@ -23,6 +24,7 @@ class File(models.Model):
     display_name = models.CharField(max_length=255, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_file')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True)  # nullable for zip
+    task_id = models.CharField(max_length=255, null=True)  # nullable for all except of zip
     new = models.IntegerField(default=0)
     duplicate = models.IntegerField(default=0)
     typo = models.IntegerField(default=0)

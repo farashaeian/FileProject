@@ -242,12 +242,19 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         # !!! It is important that give the zip file name from the
         # uploaded zip file not the extracted folder. !!!
         zip_file_name = ZipFile(attrs['file']).filename
-        duplicate_file_name_condition = File.objects.filter(
+        duplicate_file_name_condition = File.objects.get(
             display_name=zip_file_name,
             user=self.context.get('request').user
         )
         if duplicate_file_name_condition:
-            raise serializers.ValidationError("Change The Zip File Name!")
+            task_result = TaskResult.objects.get(
+                task_id=duplicate_file_name_condition.task_id)
+            if task_result.status == "SUCCESS":
+                raise serializers.ValidationError("Change The Zip File Name!")
+            elif task_result.status == "PENDING":
+                raise serializers.ValidationError("The Zip File Is Being Processed!")
+            elif task_result.status == "FAILURE":
+                duplicate_file_name_condition.delete()
         temporary_extraction = ZipFile(attrs['file'])
         zip_file_items = temporary_extraction.namelist()
         valid_item = True
@@ -276,32 +283,22 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         zipfile_obj.save()
         # call celery.task:
         zip_file_obj = File.objects.get(path=zip_file_path)
-        message = 0
-        try:
-            message = unzip.delay(zip_file_obj.path, user.id)
-            """ save task result in TaskResult model:"""
-            # unzip_task_result = TaskResult(
-            #     task_id=message.task_id,
-            #     status=message.status,
-            #     result=message.result,
-            #     date_done=message.date_done,
-            #     traceback=message.traceback,
-            #     worker=message.worker
-            # )
-            # unzip_task_result.save()
-            """ save task result in Status model:"""
-            unzip_task_result_manual = Status(
-                user_id=user.id,
-                task_id=message.task_id,
-                status=message.status,
-                result=message.result,
-                date_done=message.date_done,
-            )
-            unzip_task_result_manual.save()
-            return Response(status=status.HTTP_201_CREATED)
-        except message == 0:
-            zip_file_obj.delete()
-            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        unzip_task_result = unzip.delay(zip_file_obj.path, user.id)
+        """"""
+        zipfile_obj = File.objects.get(path=zip_file_path)
+        zipfile_obj.task_id = unzip_task_result.task_id
+        zipfile_obj.save()
+        """ save task result in Status model:"""
+        unzip_task_result_manual = Status(
+            user_id=user.id,
+            task_id=unzip_task_result.task_id,
+            status=unzip_task_result.status,
+            result=unzip_task_result.result,
+            date_done=unzip_task_result.date_done,
+        )
+        unzip_task_result_manual.save()
+
+        return Response(status=status.HTTP_201_CREATED)
 
     def to_representation(self, instance):
         try:
@@ -312,7 +309,10 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
                 user.id, zip_file_name
             )
             zip_file_obj = File.objects.get(path=zip_file_path)
-            return {"message": "The File Was Received."}
+            return {
+                "message": "The File Was Received.",
+                "task_id": zip_file_obj.task_id
+            }
         except File.DoesNotExist:
             return {"message": "The File Was  Not Received!"}
 
