@@ -5,6 +5,8 @@ from nltk.tokenize import word_tokenize
 from spellchecker import SpellChecker
 
 
+""" methods were used in uploading zipfile: """
+
 def extract_zip_file(zip_file_obj, user):
     with ZipFile(zip_file_obj.file, mode='r', allowZip64=True) as extracted_file:
         current_user_id = user.id
@@ -101,3 +103,63 @@ def save_files(file_list, user):
             typo=analyze['typo']
         )
         file_obj.save()
+
+""" methods were used in show folder view: """
+""" self is deleted from """
+
+def calculate_folder_info(sent_path):
+    # content_list = os.listdir(requested_obj.path)
+    # text_file_list = [f for f in content_list if f.endswith(".txt")]
+
+    file_list = []
+    for root, dirs, files in os.walk(sent_path):
+        for f in files:
+            file_list.append(os.path.join(root, f))
+
+    analyze = {
+        "display_name": "", "father": 0, 'new': 0, 'duplicate': 0, 'typo': 0
+    }
+    for f in file_list:
+        file_obj = File.objects.get(path=f)
+        analyze['new'] = analyze['new'] + file_obj.new
+        analyze['duplicate'] = analyze['duplicate'] + file_obj.duplicate
+        analyze['typo'] = analyze['typo'] + file_obj.typo
+    root_obj = Category.objects.get(path=sent_path)
+    analyze['display_name'] = root_obj.display_name
+    if root_obj.father:
+        analyze['father'] = root_obj.father.id
+    else:
+        analyze['father'] = ""
+
+    return analyze
+
+
+def custom_response(obj):
+    response_list = []
+    pre_content_list = os.listdir(obj.path)
+    content_list = []
+    # pre_content_list contains first level obj content's "names".
+    for x in pre_content_list:
+        if x.endswith('.txt'):
+            content_list.append(File.objects.get(display_name=x, category=obj))
+        else:
+            content_list.append(Category.objects.get(display_name=x, father=obj))
+    # content_list contains first level content's "objects".
+    for y in content_list:
+        if y.display_name.endswith('.txt'):
+            analyze = {
+                "display_name": y.display_name,
+                "category": y.category.id,
+                "new": y.new,
+                "duplicate": y.duplicate,
+                "typo": y.typo
+            }
+            response_list.append(analyze)
+        else:
+            response_list.append(calculate_folder_info(y.path))  # self. is deleted from beginning of the function
+            answer = custom_response(y)  # self. is deleted from beginning of the function
+            if answer == []:
+                pass
+            else:
+                response_list.append(answer)
+    return response_list

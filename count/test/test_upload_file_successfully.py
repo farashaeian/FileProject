@@ -9,7 +9,8 @@ from count.tasks import unzip
 from zipfile import ZipFile
 from count.custom_methods import analyze_text_file
 
-class FileTestsSuccessfully(APITestCase):
+
+class UploadFileTestsSuccessfully(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.url = reverse('celery_upload_file')
@@ -304,4 +305,10 @@ class FileTestsSuccessfully(APITestCase):
             self.assertEqual(db_item.category_id, db_item_category.id)
             # self.assertEqual(db_item.new, item_analyze['new'])
             # self.assertEqual(db_item.duplicate, item_analyze['duplicate'])
-            # self.assertEqual(db_item.typo, item_analyze['typo'])
+            self.assertEqual(db_item.typo, item_analyze['typo'])
+            # ??? how solve the above problem: celery.task and analyze method both use
+            # the same DB so the analyze method answer can't be true ????
+
+    def test_celery_upload_file_successfully_run_celery_task_successfully(self):
+        pass
+    # how write test for celery.task different returns?????

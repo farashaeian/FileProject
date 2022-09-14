@@ -9,7 +9,7 @@ import os
 from count.tasks import unzip
 
 
-class FileTestsUnsuccessfully(APITestCase):
+class UploadFileTestsUnsuccessfully(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.url = reverse('celery_upload_file')
