@@ -237,24 +237,14 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         read_only_fields = ['category']
 
     def validate(self, attrs):
+        # check type of the file(being zipped):
         if not is_zipfile(attrs['file']):
             raise serializers.ValidationError("Uploaded File Is Not Zipped!")
+
         # !!! It is important that give the zip file name from the
         # uploaded zip file not the extracted folder. !!!
-        zip_file_name = ZipFile(attrs['file']).filename
-        duplicate_file_name_condition = File.objects.get(
-            display_name=zip_file_name,
-            user=self.context.get('request').user
-        )
-        if duplicate_file_name_condition:
-            task_result = TaskResult.objects.get(
-                task_id=duplicate_file_name_condition.task_id)
-            if task_result.status == "SUCCESS":
-                raise serializers.ValidationError("Change The Zip File Name!")
-            elif task_result.status == "PENDING":
-                raise serializers.ValidationError("The Zip File Is Being Processed!")
-            elif task_result.status == "FAILURE":
-                duplicate_file_name_condition.delete()
+
+        # check the zip file structure:
         temporary_extraction = ZipFile(attrs['file'])
         zip_file_items = temporary_extraction.namelist()
         valid_item = True
@@ -264,6 +254,29 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
                 valid_item = False
         if not valid_item:
             raise serializers.ValidationError("Invalid Items!")
+
+        # check the uniqueness of the zip file:
+        try:
+            zip_file_name = ZipFile(attrs['file']).filename
+            duplicate_file_name_condition = File.objects.get(
+                display_name=zip_file_name,
+                user=self.context.get('request').user
+            )
+            if duplicate_file_name_condition:
+                # try:
+                task_result = TaskResult.objects.get(
+                    task_id=duplicate_file_name_condition.task_id)
+                if task_result.status == "SUCCESS":
+                    raise serializers.ValidationError("Change The Zip File Name!")
+                elif task_result.status == "PENDING":
+                    raise serializers.ValidationError("The Zip File Is Being Processed!")
+                elif task_result.status == "FAILURE":
+                    duplicate_file_name_condition.delete()
+                # expect TaskResult.DoesNotExist:
+                # duplicate_file_name_condition.delete()
+        except File.DoesNotExist:
+            pass
+
         return attrs
 
     def create(self, validated_data):
@@ -284,7 +297,7 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
         # call celery.task:
         zip_file_obj = File.objects.get(path=zip_file_path)
         unzip_task_result = unzip.delay(zip_file_obj.path, user.id)
-        """"""
+        """save task_id in zip file object:"""
         zipfile_obj = File.objects.get(path=zip_file_path)
         zipfile_obj.task_id = unzip_task_result.task_id
         zipfile_obj.save()

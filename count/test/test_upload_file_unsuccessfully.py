@@ -40,7 +40,7 @@ class UploadFileTestsUnsuccessfully(APITestCase):
     def test_celery_upload_file_exists_with_success_status_unsuccessfully(self):
         task_result = mommy.make(TaskResult, status='SUCCESS')
         file_from_system = "count/test/sample_zip_files/sample8.zip"
-        zipfile_name = ZipFile(file_from_system).filename
+        zipfile_name = file_from_system.split('/')[-1]
         obj_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
             self.user.id, zipfile_name)
         first_file_obj = File(
@@ -62,7 +62,7 @@ class UploadFileTestsUnsuccessfully(APITestCase):
     def test_celery_upload_file_exists_with_pending_status_unsuccessfully(self):
         task_result = mommy.make(TaskResult, status='PENDING')
         file_from_system = "count/test/sample_zip_files/sample8.zip"
-        zipfile_name = ZipFile(file_from_system).filename
+        zipfile_name = file_from_system.split('/')[-1]
         obj_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
             self.user.id, zipfile_name)
         first_file_obj = File(
@@ -82,4 +82,27 @@ class UploadFileTestsUnsuccessfully(APITestCase):
         self.assertEqual(response.data['non_field_errors'], ["The Zip File Is Being Processed!"])
 
     def test_celery_upload_file_exists_with_failure_status_successfully(self):
-        pass
+        task_result = mommy.make(TaskResult, status='FAILURE')
+        file_from_system = "count/test/sample_zip_files/sample8.zip"
+        zipfile_name = file_from_system.split('/')[-1]
+        obj_path = 'Documents/uploaded_files/user_{0}/{1}'.format(
+            self.user.id, zipfile_name)
+        first_file_obj = File(
+            file=file_from_system,
+            path=obj_path,
+            display_name='sample8.zip',
+            user=self.user,
+            category=None,
+            task_id=task_result.task_id
+        )
+        first_file_obj.save()
+
+        with open(file_from_system, 'rb') as fp:
+            response = self.client.post(self.url, {'file': fp})
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['message'], "The File Was Received.")
+        new_file_obj = File.objects.filter(path=obj_path)
+        self.assertEqual(new_file_obj.count(), 1)
+        self.assertEqual(new_file_obj[0].task_id, response.data['task_id'])
+

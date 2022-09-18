@@ -130,13 +130,13 @@ def unzip(zip_file_obj_path, user_id):
             )
             root_folder_obj.save()
 
-            folder_list = celery_find_folders(root_folder_path)
-            file_list = celery_find_files(root_folder_path)
+            extracted_folder = Category.objects.get(path=root_folder_path)
+            folder_list = celery_find_folders(extracted_folder.path)
+            file_list = celery_find_files(extracted_folder.path)
             celery_save_folders(folder_list, user)
             celery_save_files(file_list, user)
             # successful_status = Status(user=user, successful=True)
             # successful_status.save()
-            extracted_folder = Category.objects.get(path=root_folder_path)
             return {"message": "successful Process"}
         except Category.DoesNotExist:
             # unsuccessful_status = Status(user=user)

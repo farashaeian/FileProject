@@ -8,13 +8,14 @@ import os
 from count.tasks import unzip
 from zipfile import ZipFile
 from count.custom_methods import analyze_text_file
+from django_celery_results.models import TaskResult
 
 
 class UploadFileTestsSuccessfully(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.url = reverse('celery_upload_file')
-        cls.user = mommy.make(User)
+        cls.user = mommy.make(User, id=4)
 
     def setUp(self):
         self.client.force_login(self.user)
@@ -246,6 +247,7 @@ class UploadFileTestsSuccessfully(APITestCase):
         self.assertEqual(u_file_list_number, e_file_list_number)
 
     def test_celery_upload_file_successfully_comparison_extracted_folder_with_db_successfully(self):
+        """in this test in text file analyzing we just check typo"""
         file_from_system = "count/test/sample_zip_files/sample1.zip"
 
         with open(file_from_system, 'rb') as zf:
@@ -309,6 +311,52 @@ class UploadFileTestsSuccessfully(APITestCase):
             # ??? how solve the above problem: celery.task and analyze method both use
             # the same DB so the analyze method answer can't be true ????
 
+    # Do: test it by mommy too!!!
+    def test_celery_upload_file_successfully_text_file_analyzing(self):
+        """in below zip file contains one item which is a text file"""
+        """this text file contains 4 new, 2 duplicate and 3 typo words"""
+
+        file_from_system = "count/test/sample_zip_files/sample0.zip"
+
+        with open(file_from_system, 'rb') as zf:
+            response = self.client.post(self.url, {'file': zf})
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['message'], "The File Was Received.")
+
+        # call the celery.task (unzip):
+        expected_zip_file_name = file_from_system.split('/')[-1]
+        db_zip_file = File.objects.get(category=None, display_name=expected_zip_file_name)
+        unzip_task_result = unzip.apply(args=(db_zip_file.path, self.user.id)).get()
+        self.assertEqual(unzip_task_result['message'], 'successful Process')
+
+        expected_root_folder_name = expected_zip_file_name.split('.')[0]
+        root_folder_obj = Category.objects.get(display_name=expected_root_folder_name,
+                                               father=None)
+        text_file_obj = File.objects.get(category=root_folder_obj.id)
+        self.assertEqual(text_file_obj.new, 4)
+        self.assertEqual(text_file_obj.duplicate, 2)
+        self.assertEqual(text_file_obj.typo, 3)
+
+    # how write test for celery.task for different returns?????
     def test_celery_upload_file_successfully_run_celery_task_successfully(self):
-        pass
-    # how write test for celery.task different returns?????
+        file_from_system = "count/test/sample_zip_files/sample3.zip"
+
+        with open(file_from_system, 'rb') as zf:
+            response = self.client.post(self.url, {'file': zf})
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['message'], "The File Was Received.")
+
+        # call the celery.task (unzip):
+        expected_zip_file_name = file_from_system.split('/')[-1]
+        db_zip_file = File.objects.get(category=None, display_name=expected_zip_file_name)
+        unzip_task_result = unzip.apply(args=(db_zip_file.path, self.user.id)).get()
+        self.assertEqual(unzip_task_result['message'], 'successful Process')
+
+        task_result_obj = TaskResult.objects.get(task_id=db_zip_file.task_id)  # response.data['task_id']
+        self.assertEqual(task_result_obj, 'SUCCESS')
+        self.assertEqual(task_result_obj.result, {"message": "successful Process"})
+        self.assertEqual(task_result_obj.result, response.data['message'])
+        self.assertEqual(task_result_obj.child, {"children": []})
+        self.assertEqual(task_result_obj.task_id, response.data['task_id'])
