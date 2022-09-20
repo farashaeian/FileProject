@@ -15,7 +15,7 @@ class UploadFileTestsUnsuccessfully(APITestCase):
         cls.user = mommy.make(User)
 
     def setUp(self):
-        self.client.force_login(self.user)
+        self.client.force_login(self.user, id=4)
 
     def test_celery_upload_file_not_zip_unsuccessfully(self):
         file_from_system = "count/test/sample_zip_files/sampleproject1.txt"

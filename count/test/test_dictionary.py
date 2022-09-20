@@ -46,7 +46,3 @@ class DictTests(APITestCase):
         current_user_dict = Dict.objects.filter(user=new_user).order_by('-number')
         self.assertEqual(len(response.data), 0)
         self.assertEqual(current_user_dict.count(), 0)
-
-    def test_list_dictionary_with_invalid_unsuccessfully(self):
-        # how check this case without error
-        pass

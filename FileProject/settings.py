@@ -145,6 +145,10 @@ CELERY_CACHE_BACKEND = 'django-cache'  # 'default'
 
 # TEST_RUNNER = 'djcelery.contrib.test_runner.CeleryTestSuiteRunner'
 
+# two below lines  lonely don't help to save task results model in tests:
+# CELERY_TASK_ALWAYS_EAGER = True
+# CELERY_TASK_STORE_EAGER_RESULT = True
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
