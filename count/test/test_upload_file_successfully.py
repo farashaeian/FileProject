@@ -9,7 +9,8 @@ from count.tasks import unzip
 from zipfile import ZipFile
 from count.custom_methods import analyze_text_file
 from django_celery_results.models import TaskResult
-# import pytest
+import pytest
+from django.test.utils import override_settings
 
 
 class UploadFileTestsSuccessfully(APITestCase):
@@ -342,6 +343,13 @@ class UploadFileTestsSuccessfully(APITestCase):
     # how write test for celery.task for different returns?????
     # below line couldn't help us to save task result in test database :
     # @pytest.mark.celery(result_backend='sqlite://')
+    # (CELERY_TASK_ALWAYS_EAGER = True,
+    # CELERY_TASK_STORE_EAGER_RESULT = True)
+    # (CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+    # CELERY_ALWAYS_EAGER=True,
+    # BROKER_BACKEND='memory')
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True,
+                       CELERY_TASK_STORE_EAGER_RESULT=True)
     def test_celery_upload_file_successfully_run_celery_task_successfully(self):
         file_from_system = "count/test/sample_zip_files/sample3.zip"
 
