@@ -45,6 +45,8 @@ def unzip(zip_file_obj_path, user_id):
             return {"message": "Unsuccessful Process"}
     except File.DoesNotExist:
         return {"message": "The Zip File Is Not Available!"}
+    except Exception:
+        return {"message": "Sth went Wrong! Try again."}
 
 
 """

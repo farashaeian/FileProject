@@ -263,17 +263,27 @@ class CeleryUploadFileSerializer(serializers.ModelSerializer):
                 user=self.context.get('request').user
             )
             if duplicate_file_name_condition:
-                # try:
-                task_result = TaskResult.objects.get(
-                    task_id=duplicate_file_name_condition.task_id)
-                if task_result.status == "SUCCESS":
-                    raise serializers.ValidationError("Change The Zip File Name!")
-                elif task_result.status == "PENDING":
-                    raise serializers.ValidationError("The Zip File Is Being Processed!")
-                elif task_result.status == "FAILURE":
-                    duplicate_file_name_condition.delete()
-                # expect TaskResult.DoesNotExist:
-                # duplicate_file_name_condition.delete()
+                try:
+                    task_result = TaskResult.objects.get(
+                        task_id=duplicate_file_name_condition.task_id)
+                    if task_result.status == "SUCCESS":
+                        raise serializers.ValidationError("Change The Zip File Name!")
+                    elif task_result.status == "PENDING":
+                        raise serializers.ValidationError("The Zip File Is Being Processed!")
+                    elif task_result.status == "FAILURE":
+                        if os.path.isfile(duplicate_file_name_condition.path):
+                            os.remove(duplicate_file_name_condition.path)
+                        duplicate_file_name_condition.delete()
+                except TaskResult.DoesNotExist:
+                    raise serializers.ValidationError(
+                        "The Zip File was uploaded but because Celery wasn't running the process is not complete!"
+                    )
+                    # ?? does task revoke will correct the below solution ??
+                    # revoke(duplicate_file_name_condition.task_id, terminate=True)
+                    # wrong solution(because by running celery the task will be executed anytime):
+                    # duplicate_file_name_condition.delete()
+                    # os.remove(duplicate_file_name_condition.path)
+
         except File.DoesNotExist:
             pass
 

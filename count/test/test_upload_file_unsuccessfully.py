@@ -12,7 +12,7 @@ class UploadFileTestsUnsuccessfully(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.url = reverse('celery_upload_file')
-        cls.user = mommy.make(User, id=4)
+        cls.user = mommy.make(User, id=17)
 
     def setUp(self):
         self.client.force_login(self.user)
@@ -106,3 +106,5 @@ class UploadFileTestsUnsuccessfully(APITestCase):
         self.assertEqual(new_file_obj.count(), 1)
         self.assertEqual(new_file_obj[0].task_id, response.data['task_id'])
 
+    def test_celery_upload_file_exists_with_failure_status_with_pathfile_successfully(self):
+        pass

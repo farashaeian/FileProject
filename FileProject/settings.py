@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/4.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
-
+import sys
 from pathlib import Path
 # import djcelery
 # djcelery.setup_loader()
@@ -86,7 +86,7 @@ WSGI_APPLICATION = 'FileProject.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
+"""orginal Database definition"""
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -95,8 +95,22 @@ DATABASES = {
         'PASSWORD': '1234',
         'HOST': 'localhost',
         'PORT': '5432',
+        'TEST': {
+            'NAME': "mytest"
+        }
     }
 }
+
+"""this is a manually database definition :"""
+# if sys.argv[1:2] == ['test']:
+# if 'test' in sys.argv:
+#     DATABASES["default"] = {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': 'file_db',
+#         'USER': 'zahra',
+#         'PASSWORD': '1234',
+#         'HOST': 'localhost'
+#     }
 
 
 # Password validation

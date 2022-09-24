@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
-from count.models import File, Category
+from count.models import File, Category, Status
 import os
 from count.tasks import unzip
 from zipfile import ZipFile
@@ -17,7 +17,7 @@ class UploadFileTestsSuccessfully(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.url = reverse('celery_upload_file')
-        cls.user = mommy.make(User, id=4)
+        cls.user = mommy.make(User, id=17)
 
     def setUp(self):
         self.client.force_login(self.user)
@@ -340,16 +340,22 @@ class UploadFileTestsSuccessfully(APITestCase):
         self.assertEqual(text_file_obj.duplicate, 2)
         self.assertEqual(text_file_obj.typo, 3)
 
-    # how write test for celery.task for different returns?????
+    # based on celery document api test doesn't work properly for celery:
+    """
     # below line couldn't help us to save task result in test database :
     # @pytest.mark.celery(result_backend='sqlite://')
+
     # (CELERY_TASK_ALWAYS_EAGER = True,
     # CELERY_TASK_STORE_EAGER_RESULT = True)
+
     # (CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
     # CELERY_ALWAYS_EAGER=True,
     # BROKER_BACKEND='memory')
+
+    # test_file_db memory://
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True,
-                       CELERY_TASK_STORE_EAGER_RESULT=True)
+                       CELERY_TASK_STORE_EAGER_RESULT=True,
+                       BROKER_BACKEND='test_file_db://')
     def test_celery_upload_file_successfully_run_celery_task_successfully(self):
         file_from_system = "count/test/sample_zip_files/sample3.zip"
 
@@ -363,8 +369,11 @@ class UploadFileTestsSuccessfully(APITestCase):
         expected_zip_file_name = file_from_system.split('/')[-1]
         db_zip_file = File.objects.get(category=None, display_name=expected_zip_file_name)
         unzip_task_result = unzip.apply(args=(db_zip_file.path, self.user.id)).get()
+
         self.assertEqual(unzip_task_result['message'], 'successful Process')
         self.assertEqual(db_zip_file.task_id, response.data['task_id'])
+        manual_result = Status.objects.filter(task_id=db_zip_file.task_id)
+        self.assertEqual(manual_result.count(), 1)
 
         # couldn't find a way to save task result in test database :
         # task_result_obj = TaskResult.objects.get(task_id=db_zip_file.task_id)  # response.data['task_id']
@@ -373,3 +382,4 @@ class UploadFileTestsSuccessfully(APITestCase):
         # self.assertEqual(task_result_obj.result, response.data['message'])
         # self.assertEqual(task_result_obj.child, {"children": []})
         # self.assertEqual(task_result_obj.task_id, response.data['task_id'])
+        """
